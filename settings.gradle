@@ -1,0 +1,22 @@
+// Marlow Launcher — settings (AGP 9 style).
+//
+// pluginManagement resolves plugin markers (AGP, Compose compiler)
+// from the Plugin Portal + Google + Maven Central. dependency
+// resolution stays strict: FAIL_ON_PROJECT_REPOS — no project build
+// file may declare its own repositories (run 4).
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "Launcher"
+include(":app")

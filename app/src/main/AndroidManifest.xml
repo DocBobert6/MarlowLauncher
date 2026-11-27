@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Launcher: lists installed apps via LauncherApps. A launcher
+         is a Play-approved core use for QUERY_ALL_PACKAGES: on
+         Android 11+ a non-default launcher WITHOUT it only sees
+         system-image apps (Settings + Play Store), so the home
+         seeds barren and never heals — that is what happened on
+         the run-15 build. With it, the launcher sees every
+         installed app, default or not. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Phase 2: system calendar for At a Glance (#10) / Now Brief (#37),
+         requested at runtime when the strip is on; Bluetooth connect
+         state for headphone detection (#61). -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Phase 3: network for RSS feed fetching (#38). The media
+         player (#120) reads other apps' sessions through a
+         notification listener, granted by the user in settings. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- #37 Now Brief morning delivery: the daily alarm posts a
+         notification (runtime permission, requested in Settings when
+         the summary is turned on). Alarms are cleared on reboot, so
+         the boot receiver re-schedules it (RECEIVE_BOOT_COMPLETED). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Rule 58 predictive back: the drawer and folder previews
+         run through PredictiveBackHandler (activity-compose 1.8+).
+         Target SDK 35 already defaults this on; the attribute
+         states it explicitly so the support does not depend on
+         remembering the default. -->
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Launcher"
+        android:enableOnBackInvokedCallback="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|density|layoutDirection|uiMode"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:windowSoftInputMode="adjustPan">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Phase 3 (#120): feeds the auto-hiding media player with
+             the active MediaSession. Enabled by the user in system
+             settings (notification access); the listener itself does
+             nothing with notifications. Phase 4 (#31, #127, #128,
+             #132): the same listener also feeds notification badges,
+             inline previews and direct reply — no second service and
+             no second grant. A NotificationListenerService needs no
+             XML description file; the manifest entry below is the
+             whole declaration. -->
+        <service
+            android:name="app.launcher.data.MediaNotificationListener"
+            android:exported="false"
+            android:label="Media player"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Phase 4 (#26 / #89): device-admin receiver for double-tap
+             to lock. The policy file (res/xml/device_admin.xml) lists
+             force-lock only — no wipe, no password rules. -->
+        <receiver
+            android:name="app.launcher.data.LauncherDeviceAdminReceiver"
+            android:exported="false"
+            android:label="Launcher lock"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- #37 Now Brief morning delivery: the daily alarm fires
+             this receiver, which posts the "your Now Brief is ready"
+             notification. Not exported — only the app's own alarm
+             reaches it. The alarm is re-scheduled whenever the
+             launcher starts, and on boot by NowBriefBootReceiver
+             below (alarms do not survive a reboot). -->
+        <receiver
+            android:name="app.launcher.data.NowBriefReceiver"
+            android:exported="false" />
+
+        <!-- #37 boot rescheduling for the Now Brief alarm. Exported:
+             BOOT_COMPLETED is a system broadcast, and the receiver
+             ignores any other action. -->
+        <receiver
+            android:name="app.launcher.data.NowBriefBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

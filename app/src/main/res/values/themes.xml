@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Phase 0 placeholder theme. Real themes land in Phase 2. -->
+    <style name="Theme.Launcher" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Marlow Launcher icon — C "Recessed screen" (DECIDED 2026-11-26,
+         revised v3 2026-11-26 for real size under the circular mask).
+         A miniature home screen: a dark inset panel holding a 2x2 grid
+         of app tiles, the top-left tile glowing phosphor blue, its
+         light spilling over the neighbouring tiles, a dock bar below.
+         Geometry is the exact 512px design in
+         icon-options/draw_icons_v3.py (icon-3c-recessed.png), scaled
+         to the 108dp viewport (x0.2109375).
+         V3 CHANGES (lesson from Robert's installer screenshot): v2's
+         panel (#1B1713) was barely darker than the background
+         (#262019) and its 0.8dp highlight was sub-pixel at 48px, so
+         under the mask the icon read as four flat tiles in a dark
+         circle — no recess, no spill, no dock pill. V3 deepens the
+         panel to near-black (#0E0B08), adds a clearly lighter warm
+         rim (#57493B, 3dp) around it, enlarges the tiles, strengthens
+         the spill (six concentric discs, not faint annuli), and makes
+         the dock pill paper (#F8F1E7) so it reads as a dock bar.
+         VERIFIED (icon-v3-compare.png): the vector render matches the
+         v3 design at 512px, and the 48px renders under 66dp AND 72dp
+         circular masks show the panel edge, the spill tint on the
+         neighbouring tiles, and the dock pill. Never again approve an
+         icon on the 512px square alone. -->
+    <!-- Warm rim around the inset panel (the recess edge) -->
+    <path
+        android:fillColor="#57493B"
+        android:pathData="M34.2,24.0H73.8Q81.8,24.0 81.8,32.0V81.9Q81.8,89.9 73.8,89.9H34.2Q26.2,89.9 26.2,81.9V32.0Q26.2,24.0 34.2,24.0Z" />
+    <!-- Recessed panel (near-black) -->
+    <path
+        android:fillColor="#0E0B08"
+        android:pathData="M35.9,27.0H72.1Q78.9,27.0 78.9,33.8V80.1Q78.9,86.9 72.1,86.9H35.9Q29.1,86.9 29.1,80.1V33.8Q29.1,27.0 35.9,27.0Z" />
+    <!-- Top inner light along the panel top -->
+    <path
+        android:fillColor="#6B5F50"
+        android:pathData="M31.6,27.6H76.4V28.9H31.6Z" />
+    <!-- Paper tiles (top-right, bottom-left, bottom-right) -->
+    <path
+        android:fillColor="#F8F1E7"
+        android:pathData="M59.9,32.1H71.7Q75.5,32.1 75.5,35.9V47.7Q75.5,51.5 71.7,51.5H59.9Q56.1,51.5 56.1,47.7V35.9Q56.1,32.1 59.9,32.1Z" />
+    <path
+        android:fillColor="#F8F1E7"
+        android:pathData="M37.1,54.9H48.9Q52.7,54.9 52.7,58.7V70.5Q52.7,74.3 48.9,74.3H37.1Q33.3,74.3 33.3,70.5V58.7Q33.3,54.9 37.1,54.9Z" />
+    <path
+        android:fillColor="#F8F1E7"
+        android:pathData="M59.9,54.9H71.7Q75.5,54.9 75.5,58.7V70.5Q75.5,74.3 71.7,74.3H59.9Q56.1,74.3 56.1,70.5V58.7Q56.1,54.9 59.9,54.9Z" />
+    <!-- Light spill from the glowing tile, over the paper tiles.
+         Nine concentric discs (largest first, strongest last),
+         centred on the glowing tile (43.0, 41.8) — a vector drawable
+         has no blur, so the glow is built as stepped discs; the
+         steps are small enough to blend into a smooth haze even at
+         512px. -->
+    <path
+        android:fillColor="#045555FF"
+        android:pathData="M22.0,41.8a21,21 0 1,0 42,0a21,21 0 1,0 -42,0Z" />
+    <path
+        android:fillColor="#0E5555FF"
+        android:pathData="M24.0,41.8a19,19 0 1,0 38,0a19,19 0 1,0 -38,0Z" />
+    <path
+        android:fillColor="#125555FF"
+        android:pathData="M26.0,41.8a17,17 0 1,0 34,0a17,17 0 1,0 -34,0Z" />
+    <path
+        android:fillColor="#145555FF"
+        android:pathData="M28.0,41.8a15,15 0 1,0 30,0a15,15 0 1,0 -30,0Z" />
+    <path
+        android:fillColor="#1C5555FF"
+        android:pathData="M30.0,41.8a13,13 0 1,0 26,0a13,13 0 1,0 -26,0Z" />
+    <path
+        android:fillColor="#245555FF"
+        android:pathData="M32.0,41.8a11,11 0 1,0 22,0a11,11 0 1,0 -22,0Z" />
+    <path
+        android:fillColor="#2E5555FF"
+        android:pathData="M34.0,41.8a9,9 0 1,0 18,0a9,9 0 1,0 -18,0Z" />
+    <path
+        android:fillColor="#425555FF"
+        android:pathData="M36.5,41.8a6.5,6.5 0 1,0 13,0a6.5,6.5 0 1,0 -13,0Z" />
+    <path
+        android:fillColor="#625555FF"
+        android:pathData="M39.0,41.8a4,4 0 1,0 8,0a4,4 0 1,0 -8,0Z" />
+    <!-- Glowing tile, crisp on top of the spill -->
+    <path
+        android:fillColor="#5555FF"
+        android:pathData="M37.1,32.1H48.9Q52.7,32.1 52.7,35.9V47.7Q52.7,51.5 48.9,51.5H37.1Q33.3,51.5 33.3,47.7V35.9Q33.3,32.1 37.1,32.1Z" />
+    <!-- Dock bar (paper, so it reads as a dock at launcher size) -->
+    <path
+        android:fillColor="#F8F1E7"
+        android:pathData="M39.6,75.9H68.4Q70.9,75.9 70.9,78.4V78.5Q70.9,81.0 68.4,81.0H39.6Q37.1,81.0 37.1,78.5V78.4Q37.1,75.9 39.6,75.9Z" />
+</vector>

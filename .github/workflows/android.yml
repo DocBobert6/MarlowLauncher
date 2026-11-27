@@ -1,0 +1,226 @@
+# Launcher CI: unit tests (incl. Robolectric startup gate) -> debug APK ->
+# 255-register dex guard -> debug APK artifact.
+# The dex guard is a standing rule: a composable past 255 registers is
+# rejected by ART's verifier at launch while the JVM stays green, so no
+# release is cut with an oversized method. Never remove the guard to get
+# a build green.
+name: Android
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Manifest guard: the launcher contract that lives in
+      # AndroidManifest.xml, checked statically. These used to be
+      # Robolectric assertions (declaresRequiredConfigChanges,
+      # launcherIconIsSuppliedArtwork) but run 11 proved the test
+      # PackageManager returns zeroed stubs for manifest lookups
+      # under the test package (configChanges 0, icon 0), so the
+      # checks moved here, where the file itself is the source of
+      # truth. Same coverage, same run, honest layer.
+      - name: Manifest guard — launcher contract
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          NS = "{http://schemas.android.com/apk/res/android}"
+          REQUIRED_CONFIG = {
+              "orientation", "screenSize", "screenLayout",
+              "keyboardHidden", "smallestScreenSize",
+          }
+
+          errors = []
+          root = ET.parse("app/src/main/AndroidManifest.xml").getroot()
+          app = root.find("application")
+          if app is None:
+              print("ERROR: no <application> in manifest", file=sys.stderr)
+              sys.exit(1)
+          if app.get(NS + "icon") != "@mipmap/ic_launcher":
+              errors.append(
+                  f"application icon is {app.get(NS + 'icon')!r}, "
+                  "expected '@mipmap/ic_launcher' (the supplied artwork)")
+          if app.get(NS + "roundIcon") != "@mipmap/ic_launcher_round":
+              errors.append(
+                  f"application roundIcon is {app.get(NS + 'roundIcon')!r}, "
+                  "expected '@mipmap/ic_launcher_round'")
+
+          activity = None
+          for act in app.findall("activity"):
+              name = act.get(NS + "name") or ""
+              if name in (".MainActivity", "app.launcher.MainActivity"):
+                  activity = act
+          if activity is None:
+              errors.append("MainActivity not declared in manifest")
+          else:
+              if activity.get(NS + "exported") != "true":
+                  errors.append("MainActivity must be exported=true")
+              if activity.get(NS + "launchMode") != "singleTask":
+                  errors.append(
+                      "MainActivity launchMode is "
+                      f"{activity.get(NS + 'launchMode')!r}, expected 'singleTask'")
+              declared = set(
+                  (activity.get(NS + "configChanges") or "").split("|"))
+              missing = REQUIRED_CONFIG - declared
+              if missing:
+                  errors.append(
+                      "MainActivity configChanges is missing: "
+                      + ", ".join(sorted(missing)))
+              home_filter = False
+              for f in activity.findall("intent-filter"):
+                  actions = {a.get(NS + "name") for a in f.findall("action")}
+                  cats = {c.get(NS + "name") for c in f.findall("category")}
+                  if ("android.intent.action.MAIN" in actions
+                          and "android.intent.category.HOME" in cats
+                          and "android.intent.category.DEFAULT" in cats):
+                      home_filter = True
+              if not home_filter:
+                  errors.append(
+                      "MainActivity has no MAIN + HOME + DEFAULT intent-filter")
+
+          if errors:
+              print("Manifest guard FAILED:", file=sys.stderr)
+              for e in errors:
+                  print(f"  - {e}", file=sys.stderr)
+              sys.exit(1)
+          print("Manifest guard passed: MainActivity (exported, singleTask, "
+                "config changes, HOME filter) + supplied launcher icon.")
+          PYEOF
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # No setup-android action: android-actions/setup-android@v3 is
+      # broken on current runners — its default `packages: tools
+      # platform-tools` fails because the `tools` package no longer
+      # exists ("Failed to find package 'tools'", run 2), and its
+      # license step runs `sdkmanager --licenses` interactively and
+      # dies prompting (run 1). The ubuntu runner already ships a
+      # working SDK (cmdline-tools 20.0, ANDROID_HOME set); Gradle
+      # installs any missing package itself once licenses are accepted.
+      - name: Accept Android SDK licenses
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK"
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" --version
+          mkdir -p "$SDK/licenses"
+          # android-sdk-license (three known hashes) and the preview
+          # license (needed for compileSdk 37, a preview platform).
+          # Hashes are the long-stable public constants; the other five
+          # unaccepted licenses (googletv, googlexr, arm-dbt, gdk,
+          # microxr, mips sysimage) cover packages this build never
+          # installs, so they stay unaccepted.
+          printf '%s\n%s\n%s\n' \
+            '8933bad161af4178b1185d1a37fbf41ea5269c55' \
+            'd56f5187479451eabf01fb78af6dfcb131a6481e' \
+            '24333f8a63b6825ea9c5514f83c2829b004d1fee' \
+            > "$SDK/licenses/android-sdk-license"
+          printf '%s\n' '84831b9409646a918e30573bab4c9c91346d8abd' \
+            > "$SDK/licenses/android-sdk-preview-license"
+          ls -l "$SDK/licenses"
+
+      - name: Set up Gradle 9.9.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.1"
+
+      # The repo now carries a real Gradle wrapper (gradlew +
+      # gradle-wrapper.jar, 9.9.1 — rebuilt 2026-11-26), so the
+      # steps call ./gradlew. setup-gradle still provides the
+      # dependency cache.
+      # Run 16 (rebuild push 995bbfb5) proved why this step needs a
+      # timeout: a failing startup-gate test left the test worker
+      # wedged and the step ran 49 minutes until the run was
+      # cancelled by hand. Ten minutes is far past the step's normal
+      # ~1 minute; on timeout the step fails and the reports below
+      # upload, so the failure is diagnosable instead of silent.
+      - name: Run unit tests
+        timeout-minutes: 10
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Dex guard — no app method over 255 registers
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import glob
+          import os
+          import subprocess
+          import sys
+          # dexdump lives in the newest installed build-tools.
+          tools = sorted(glob.glob(os.path.join(os.environ["ANDROID_HOME"], "build-tools", "*", "dexdump")))
+          if not tools:
+              print("ERROR: dexdump not found", file=sys.stderr)
+              sys.exit(1)
+          dexdump = tools[-1]
+          dex_files = sorted(glob.glob(
+              "app/build/intermediates/dex/debug/**/*.dex", recursive=True))
+          if not dex_files:
+              print("ERROR: no dex files found under "
+                    "app/build/intermediates/dex/debug/", file=sys.stderr)
+              subprocess.run(
+                  ["find", "app/build/intermediates/dex", "-maxdepth", "4"],
+                  check=False)
+              sys.exit(1)
+          methods = []  # (registers, class, method)
+          current_class = ""
+          current_method = ""
+          for dex in dex_files:
+              raw = subprocess.run(
+                  [dexdump, "-d", dex], capture_output=True,
+                  check=True).stdout
+              out = raw.decode("utf-8", errors="replace")
+              for line in out.splitlines():
+                  stripped = line.strip()
+                  if stripped.startswith("#") and "(in L" in stripped:
+                      current_class = stripped.split("(in ", 1)[1].rstrip(";)")
+                      current_method = ""
+                  elif stripped.startswith("name") and ":" in stripped:
+                      current_method = stripped.split(":", 1)[1].strip().strip("'")
+                  elif stripped.startswith("registers") and ":" in stripped:
+                      try:
+                          regs = int(stripped.split(":", 1)[1].strip())
+                      except ValueError:
+                          continue
+                      if current_class.startswith("Lapp/launcher/"):
+                          methods.append((regs, current_class, current_method))
+          methods.sort(reverse=True)
+          print("Largest app methods by register count:")
+          for regs, cls, name in methods[:8]:
+              print(f"  {regs:4d}  {cls}.{name}")
+          over = [m for m in methods if m[0] > 255]
+          if over:
+              print(f"ERROR: {len(over)} app method(s) exceed 255 registers", file=sys.stderr)
+              sys.exit(1)
+          print(f"Dex guard passed: {len(methods)} app methods checked, max {methods[0][0] if methods else 0} registers.")
+          PYEOF
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk

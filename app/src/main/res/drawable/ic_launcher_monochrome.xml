@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Marlow Launcher monochrome layer (rule 45/48, icon C v3).
+         A true silhouette: a single-colour solid of the primary mark
+         only — the recessed home-screen panel from
+         ic_launcher_foreground.xml (same path geometry, same 108dp
+         viewport, same 66dp safe zone). No gradient, no two-tone, no
+         drop shadow, no thin detail: the system tints this one solid
+         shape from the wallpaper palette for themed icons. The tiles,
+         the spill and the dock pill of the colour foreground are
+         deliberately NOT here — a monochrome layer is one mark. -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M34.2,24.0H73.8Q81.8,24.0 81.8,32.0V81.9Q81.8,89.9 73.8,89.9H34.2Q26.2,89.9 26.2,81.9V32.0Q26.2,24.0 34.2,24.0Z" />
+</vector>
